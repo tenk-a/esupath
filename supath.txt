@@ -1,0 +1,12 @@
+Usage: supath [オプション] <dir>
+[オプション]
+ -l --list           PATH のディレクトリ一覧出力.
+ -p --prepend <dir>  PATH の先頭にディレクトリ追加.
+ -a --append  <dir>  PATH の最後にディレクトリ追加.
+ -r --remove  <dir>  ディレクトリを削除.
+ -u --user           ユーザー環境変数(デフォルト)
+ -s --system         システム環境変数.
+    --var <NAME>     対象環境変数を<NAME>に変更(デフォルト: PATH)
+
+Windows レジストリの SYSTEM/USER 環境変数 PATH の表示/追加/削除.
+注意: レジストリに対する操作のみで、現在のプロセスの PATH は非操作.
