@@ -255,17 +255,14 @@ private:
         return true;
     }
 
-    //
+
     static bool isAdmin() {
-        BOOL                      admin = FALSE;
-        PSID                      sid   = NULL;
-        SID_IDENTIFIER_AUTHORITY  nt    = SECURITY_NT_AUTHORITY;
-        AllocateAndInitializeSid(&nt, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &sid);
-        if (sid) {
-            CheckTokenMembership(NULL, sid, &admin);
-            FreeSid(sid);
-        }
-        return admin != FALSE;
+        BYTE  sid_buf[SECURITY_MAX_SID_SIZE];
+        DWORD sid_size = sizeof(sid_buf);
+        BOOL  is_memb  = FALSE;
+        return CreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, sid_buf, &sid_size)
+            && CheckTokenMembership(NULL, sid_buf, &is_memb)
+            && is_memb == TRUE;
     }
 
     //
@@ -387,7 +384,6 @@ private:
         return r;
     }
 };
-
 
 //
 int wmain(int argc, wchar_t *argv[]) {
