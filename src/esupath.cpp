@@ -947,8 +947,16 @@ private:
                 } else if (args.get_opt2('s', "--system")) {
                     targets_   |= TGT_SYS;
                 } else if (args.get_opt2('b', "--batch", bat_fname_)) {
+                    if (bat_fname_.empty()) {
+                        eprintf("-b,--batch requires a file name.\n");
+                        return Er;
+                    }
                     targets_   |= TGT_PRC;
                 } else if (args.get_opt("--var", var_u8name_)) {
+                    if (var_u8name_.empty()) {
+                        eprintf("--var requires a variable name.\n");
+                        return Er;
+                    }
                     if (!validVarName(var_u8name_)) {
                         eprintf("Invalid variable name : %s\n", var_u8name_.c_str());
                         return Er;
