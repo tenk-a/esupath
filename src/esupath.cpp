@@ -4,14 +4,21 @@
  * @author Masashi Kitamura ( https://github.com/tenk-a/ )
  * @date 2025-2026
  */
-#include <windows.h>
-#include <shellapi.h>
+
 #include <cstdio>
 #include <cctype>
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <stdarg.h>
+#include <cstdarg>
+#include <cstdlib>
+#include <cstring>
+
+#include <windows.h>
+#include <shellapi.h>
+#include <shlobj_core.h>
+#include <direct.h>
+
 #define ZATU_USE_CMD_LINE_ARGS_UTIL
 #include "cmd_line_args.hpp"
 
@@ -20,6 +27,14 @@
  #pragma comment(lib, "User32.lib")
  #pragma comment(lib, "Shell32.lib")
 #endif
+
+using namespace std;
+using namespace zatu;
+using   Char    = wchar_t;
+using   String  = wstring;
+using   StrVec  = vector<String>;
+#define _C(x)   L##x
+#define NameCmp _wcsicmp
 
 #define USE_JP
 
@@ -38,6 +53,7 @@ static char const usage_jp[] = ""
        " -e --env               現在プロセスの環境変数を対象.\n"
        " -b --batch <FILE>      現在プロセスの環境変数を対象、変更結果はバッチ出力.\n"
        " -y --yes               書き込み前のキー入力待ちをスキップ.\n"
+       " -c --clear             PATH を全削除 (--var 変更時用).\n"
        "    --var <NAME>        PATH でなく対象環境変数を <NAME> に変更.\n"
        "    --delete-var        --var で指定した環境変数を削除.\n"
        "    --silent            確認のための編集前後の内容表示や入力待ちを行わない.\n"
@@ -65,6 +81,7 @@ static char const usage_en[] = ""
        " -e --env               Target the current process environment.\n"
        " -b --batch <FILE>      Target current env. and write a batch file.\n"
        " -y --yes               Do not wait for a key before writing.\n"
+       " -c --clear             TODO\n"
        "    --var <NAME>        Use NAME instead of PATH.\n"
        "    --delete-var        Delete the variable named by --var.\n"
        "    --silent            Do not show before/after or wait for input.\n"
@@ -80,14 +97,15 @@ static char const usage_en[] = ""
        "# Run the batch file written by -b to update the current shell.\n"
        ;
 
-using namespace std;
-using namespace zatu;
+Char const* const win_required_directories[][2] = {
+    { _C("%SystemRoot%"), _C("C:\\Windows") },
+    { _C("%SystemRoot%\\System32"), _C("C:\\Windows\\System32") },
+    { _C("%SystemRoot%\\System32\\Wbem"), _C("C:\\Windows\\System32\\Wbem") },
+    //{ _C("%SystemRoot%\\System32WindowsPowerShell\\v1.0\\"), _C("C:\\Windows\\System32WindowsPowerShell\\v1.0\\") },
+};
+constexpr size_t  win_required_directories_size = sizeof(win_required_directories) / sizeof(win_required_directories[0]);
 
-using   Char    = wchar_t;
-using   String  = wstring;
-using   StrVec  = vector<String>;
-#define _C(x)   L##x
-#define NameCmp _wcsicmp
+#define C_PATH  _C("PATH")
 
 
 namespace StrUtl {
@@ -145,13 +163,17 @@ namespace StrUtl {
         uint32_t    tc   = getCh(tgt2);
         switch (*ptn) {
         case _C('\0'):
+          #if 1 // check last-dir-sep.
             if (isSep(tc) && *tgt2 == _C('\0'))
                 return true;
+          #endif
             return tc == _C('\0');
         case _C('\\'):
         case _C('/'):
+          #if 1 // check last-dir-sep.
             if (ptn[1] == _C('\0') && tc == _C('\0'))
                 return true;
+          #endif
             return isSep(tc) && dirnameEqu(ptn + 1, tgt2);
         default:
             uint32_t pc = getCh(ptn);
@@ -168,13 +190,17 @@ namespace StrUtl {
         uint32_t    tc   = getCh(tgt2);
         switch (*ptn) {
         case _C('\0'):
+          #if 1 // check last-dir-sep.
             if (isSep(tc) && *tgt2 == _C('\0'))
                 return true;
+          #endif
             return tc == _C('\0');
         case _C('\\'):
         case _C('/'):
+          #if 1 // check last-dir-sep.
             if (ptn[1] == _C('\0') && tc == _C('\0'))
                 return true;
+          #endif
             return isSep(tc) && dirnameMatch(ptn + 1, tgt2);
         case _C('?'):
             return tc && !isSep(tc) && dirnameMatch(ptn + 1, tgt2);
@@ -361,6 +387,57 @@ namespace StrUtl {
         return num != dst.size();
     }
 
+    String fpathRemoveExt(String&& path) {
+        Char const* t = path.data();
+        Char const* b = cmd_line_args_util::fname_base(t);
+        Char const* p = wcsrchr(b, _C('.'));
+        if (p)
+            path.resize(size_t(p - t));
+        return path;
+    }
+
+
+    String fpathAddExt(String&& path, Char const* ext) {
+        path += ext;
+        return path;
+    }
+
+    String fpathChangeExt(String&& src, Char const* ext) {
+        return fpathAddExt(fpathRemoveExt(std::move(src)), ext);
+    }
+
+    std::string quotedValue(std::string const& src) {
+        std::string dst;
+        dst.reserve(src.size() + 2);
+        dst += '"';
+        for (char c : src) {
+            switch (c) {
+            case '"':  dst += "\"\""; break;
+            case '\t': dst += "\\t"; break;
+            case '\r': dst += "\\r"; break;
+            case '\n': dst += "\\n"; break;
+            default:   dst += c; break;
+            }
+        }
+        dst += '"';
+        return dst;
+    }
+}
+
+
+namespace WinUtl {
+
+    /// 管理者権限チェック.
+    ///
+    bool isAdmin() {
+        BYTE  sid_buf[SECURITY_MAX_SID_SIZE];
+        DWORD sid_size = sizeof(sid_buf);
+        BOOL  is_memb  = FALSE;
+        return CreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, sid_buf, &sid_size)
+            && CheckTokenMembership(NULL, sid_buf, &is_memb)
+            && is_memb == TRUE;
+    }
+
     /// コマンドライン先頭引数(argv[0])をスキップ.
     ///
     Char const* skipCmdLineArg0(Char const* cmdline) {
@@ -385,37 +462,21 @@ namespace StrUtl {
         return p;
     }
 
-}
-
-
-namespace WinUtl {
-
-    /// 管理者権限チェック.
-    ///
-    bool isAdmin() {
-        BYTE  sid_buf[SECURITY_MAX_SID_SIZE];
-        DWORD sid_size = sizeof(sid_buf);
-        BOOL  is_memb  = FALSE;
-        return CreateWellKnownSid(WinBuiltinAdministratorsSid, NULL, sid_buf, &sid_size)
-            && CheckTokenMembership(NULL, sid_buf, &is_memb)
-            && is_memb == TRUE;
-    }
-
     /// 管理者として再実行.
     ///
     bool restartAdmin() {
-        Char exe[MAX_PATH];
+        wchar_t exe[MAX_PATH];
         GetModuleFileNameW(NULL, exe, sizeof(exe)/sizeof(exe[0]));
-        return (INT_PTR)ShellExecuteW(NULL, _C("runas"), exe, StrUtl::skipCmdLineArg0(GetCommandLineW()), NULL, SW_SHOWNORMAL) > 32;
+        return (INT_PTR)ShellExecuteW(NULL, _C("runas"), exe, skipCmdLineArg0(GetCommandLineW()), NULL, SW_SHOWNORMAL) > 32;
     }
 
     /// 現在プロセスの環境変数から取得.
     ///
-    bool readProcEnv(Char const* name, String& out) {
+    bool readProcEnv(wchar_t const* name, String& out) {
         DWORD   size    = GetEnvironmentVariableW(name, NULL, 0);
         if (size == 0)
             return false;
-        vector<Char> buf(size);
+        vector<wchar_t> buf(size);
         GetEnvironmentVariableW(name, buf.data(), size);
         out.assign(buf.data());
         return true;
@@ -423,8 +484,8 @@ namespace WinUtl {
 
     /// レジストリから環境変数を読み取り.
     ///
-    bool readRegEnv(Char const* name, bool sys, String &out, DWORD* pType=nullptr) {
-        Char const* sub = sys ? _C("SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment") : _C("Environment");
+    bool readRegEnv(wchar_t const* name, bool sys, String &out, DWORD* pType=nullptr) {
+        wchar_t const* sub = sys ? _C("SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment") : _C("Environment");
         HKEY        h   = 0;
 
         if (RegOpenKeyExW(sys ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER, sub, 0, KEY_READ, &h) != ERROR_SUCCESS)
@@ -438,14 +499,14 @@ namespace WinUtl {
             return false;
         }
 
-        vector<Char> buf(size / sizeof (Char) + 1);
+        vector<wchar_t> buf(size / sizeof (wchar_t) + 1);
 
         if (RegQueryValueExW(h, name, 0, NULL, (LPBYTE) &buf[0], &size) != ERROR_SUCCESS) {
             RegCloseKey(h);
             return false;
         }
 
-        buf[size / sizeof (Char)] = 0;
+        buf[size / sizeof (wchar_t)] = 0;
         out.assign(&buf[0]);
         RegCloseKey(h);
         if (pType)
@@ -455,15 +516,15 @@ namespace WinUtl {
 
     /// レジストリへ環境変数を書き込み.
     ///
-    bool writeRegEnv(Char const* name, bool sys, String const& val, DWORD type = 0) {
-        Char const* sub = sys ? L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" : L"Environment";
+    bool writeRegEnv(wchar_t const* name, bool sys, String const& val, DWORD type = 0) {
+        wchar_t const* sub = sys ? L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" : L"Environment";
         HKEY        h   = 0;
         if (type == 0)
             type = REG_EXPAND_SZ;
         if (RegOpenKeyExW(sys ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER, sub, 0, KEY_SET_VALUE, &h) != ERROR_SUCCESS)
             return false;
 
-        if (RegSetValueExW(h, name, 0, type, (const BYTE *) val.c_str(), (DWORD)((val.size() + 1) * sizeof(Char))) != ERROR_SUCCESS) {
+        if (RegSetValueExW(h, name, 0, type, (const BYTE *) val.c_str(), (DWORD)((val.size() + 1) * sizeof(wchar_t))) != ERROR_SUCCESS) {
             RegCloseKey(h);
             return false;
         }
@@ -474,8 +535,8 @@ namespace WinUtl {
 
     /// レジストリから環境変数を削除.
     ///
-    int deleteRegEnv(Char const* name, bool sys) {
-        Char const* sub = sys ? L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" : L"Environment";
+    int deleteRegEnv(wchar_t const* name, bool sys) {
+        wchar_t const* sub = sys ? L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" : L"Environment";
         HKEY        h   = 0;
 
         LONG rc = RegOpenKeyExW(sys ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER, sub, 0, KEY_SET_VALUE, &h);
@@ -502,6 +563,140 @@ namespace WinUtl {
             }
         }
         return dst;
+    }
+
+    String getAppName() {
+        wchar_t path[MAX_PATH];
+        path[0] = 0;
+        GetModuleFileNameW(NULL, path, MAX_PATH);
+        return path;
+    }
+
+    bool makeDir(String const& path) {
+        return CreateDirectoryW(path.c_str(), NULL) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
+    }
+
+    String knownFolderPath(REFKNOWNFOLDERID folderId) {
+        wchar_t* path = nullptr;
+        String result;
+        if (SUCCEEDED(SHGetKnownFolderPath(folderId, KF_FLAG_CREATE, NULL, &path)) && path)
+            result.assign(path);
+        if (path)
+            CoTaskMemFree(path);
+        return result;
+    }
+
+    bool file_lockAppendUtf8(String const& path, string const& line) {
+        if (path.empty())
+            return false;
+
+        HANDLE file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (file == INVALID_HANDLE_VALUE)
+            return false;
+
+        OVERLAPPED lock = {};
+        bool ok = LockFileEx(file, LOCKFILE_EXCLUSIVE_LOCK, 0, MAXDWORD, MAXDWORD, &lock) != FALSE;
+        if (ok) {
+            LARGE_INTEGER size = {};
+            LARGE_INTEGER zero = {};
+            ok = GetFileSizeEx(file, &size) != FALSE
+                && SetFilePointerEx(file, zero, NULL, FILE_END) != FALSE;
+            DWORD written = 0;
+            if (ok) {
+                DWORD length = DWORD(line.size());
+                ok = WriteFile(file, line.data(), length, &written, NULL) != FALSE && written == length;
+            }
+            UnlockFileEx(file, 0, MAXDWORD, MAXDWORD, &lock);
+        }
+        CloseHandle(file);
+        return ok;
+    }
+}
+
+
+
+namespace AppLog {
+
+    enum Scope {
+        User    = false,
+        System  = true,
+    };
+
+    bool makeLogDir(String const& base, wchar_t const* leaf, String& out) {
+        if (base.empty())
+            return false;
+        String appDir = base + _C("\\esupath");
+        out = appDir + _C("\\") + leaf;
+        return WinUtl::makeDir(appDir) && WinUtl::makeDir(out);
+    }
+
+    String logDir(bool sys) {
+        String base;
+        String dir;
+        if (sys) {
+            base = WinUtl::knownFolderPath(FOLDERID_ProgramData);
+        } else {
+            base = WinUtl::knownFolderPath(FOLDERID_Profile);
+            if (!base.empty())
+                base += _C("\\AppData");
+        }
+        return (makeLogDir(base, _C("Logs"), dir)) ? dir : String();
+    }
+
+    String historyFilePath(bool sys) {
+        String base;
+        String dir = logDir(sys);
+        if (!dir.empty())
+            return dir + (sys ? _C("\\esupath_system.his") : _C("\\esupath_user.his"));
+        return String();
+    }
+
+
+    String operationFilePath(bool sys) {
+        String base;
+        String dir = logDir(sys);
+        if (!dir.empty())
+            return dir + (sys ? _C("\\esupath_system.log") : _C("\\esupath_user.log"));
+        return String();
+    }
+
+    string timestamp() {
+        SYSTEMTIME st;
+        GetLocalTime(&st);
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%04u-%02u-%02u %02u:%02u:%02u",
+            unsigned(st.wYear), unsigned(st.wMonth), unsigned(st.wDay),
+            unsigned(st.wHour), unsigned(st.wMinute), unsigned(st.wSecond));
+        return buf;
+    }
+
+    bool writeHistory(bool sys, char const* when, String const& name, String const& value) {
+        string line = timestamp();
+        line += '\t';
+        line += when;
+        line += '\t';
+        line += sys ? "SYSTEM" : "USER";
+        line += '\t';
+        line += StrUtl::wcsToUtf8(name);
+        line += '\t';
+        line += StrUtl::quotedValue(StrUtl::wcsToUtf8(value));
+        line += '\n';
+        return WinUtl::file_lockAppendUtf8(historyFilePath(sys), line);
+    }
+
+    bool writeOperation(bool sys, char const* operation, String const& name, char const* result) {
+        string line = timestamp();
+        line += '\t';
+        line += operation;
+        line += '\t';
+        line += sys ? "SYSTEM" : "USER";
+        line += '\t';
+        line += StrUtl::wcsToUtf8(name);
+        line += '\t';
+        line += result;
+        line += '\n';
+        return WinUtl::file_lockAppendUtf8(operationFilePath(sys), line);
     }
 }
 
@@ -536,6 +731,12 @@ public:
         }
     }
 
+    /// 全削除.
+    ///
+    void clear() {
+        paths_.clear();
+    }
+
     /// 指定ディレクトリ(複数)の削除.
     /// @param wc ワイルドカード指定.
     bool remove(String const& src, bool wc=false) {
@@ -557,11 +758,11 @@ public:
         return StrUtl::removeDupPaths(paths_);
     }
 
- #if 0
     bool contains(String const& path) const {
         return StrUtl::containsPaths(paths_, path);
     }
 
+ #if 0
     bool containsWC(String const& path) const {
         return StrUtl::containsPathsWC(paths_, path);
     }
@@ -579,8 +780,9 @@ class App {
     enum { TGT_PRC = 0x01, TGT_USR = 0x02, TGT_SYS = 0x04 };
     enum { OP_NONE, OP_REMOVE, OP_PREPEND, OP_APPEND };
 
-    string      var_u8name_ = "PATH";
-    String      var_name_   = _C("PATH");
+    String      var_name_   = C_PATH;
+    string      var_u8name_;
+    string      conf_name_;
 
     string      bat_fname_;
     FILE*       bat_file_   = nullptr;
@@ -597,6 +799,8 @@ class App {
     FilePaths   prepends_;
     FilePaths   appends_;
 
+    DWORD       sav_cp_     = GetConsoleOutputCP();
+
     DWORD       usr_reg_typ_= 0;
     DWORD       sys_reg_typ_= 0;
 
@@ -606,8 +810,8 @@ class App {
     bool        do_del_var_ = false;
     bool        skip_wait_  = false;
     bool        silent_     = false;
+    bool        clear_flag_ = false;
 
-    DWORD       sav_cp_     = GetConsoleOutputCP();
 
 public:
     /// デフォルト・コンストラクタ.
@@ -654,24 +858,29 @@ public:
         sys_paths_.add(sys_str_);
 
      #if !defined(NDEBUG)
+        eprintf("DEBUG [[\n");
         printPaths(removes_ , "removes" , "");
         printPaths(prepends_, "prepends", "");
         printPaths(appends_ , "appends" , "");
+        eprintf("DEBUG ]]\n");
      #endif
 
         // 一覧表示のみ.
-        if (do_list_) {
+        if (do_list_)
             return doList();
-        }
 
         if (targets_ == 0) {
             eprintf("When deleting or adding, -e,--env, -u,--user, -s,--system options are required.\n");
             return Er;
         }
 
-        // SYSTEM を編集するときには admin 権限が必要.
-        if ((targets_ & TGT_SYS) && !WinUtl::isAdmin())
-            return WinUtl::restartAdmin() ? Ok : Er;
+        // SYSTEM PATH 操作のとき、必須なディレクトリが足りていないかチェック.
+        if (checkSystemPaths() == false)
+            return Er;
+
+        // // SYSTEM を編集するときには admin 権限が必要.
+        // if (!silent_ && (targets_ & TGT_SYS) && !WinUtl::isAdmin())
+        //     return WinUtl::restartAdmin() ? Ok : Er;
 
         // 環境変数の編集.
         return edit();
@@ -701,22 +910,33 @@ private:
     /// コマンドライン引数取得.
     ///
     int parseArgs(int argc, wchar_t* argv[]) {
+        using namespace cmd_line_args_util;
+
         char** u8argv = WinUtl::wcsArgvToUtf8Argv(argc, argv);
         if (!u8argv)
             return Er;
+
         cmd_line_args<> args(argc, u8argv);
+
+        // exe と同じフォルダにある .cfg ファイルの読込.
+        conf_name_ = StrUtl::wcsToUtf8(StrUtl::fpathChangeExt(WinUtl::getAppName(), _C(".cfg")));
+        cmd_line_args_insert_res_file(args, conf_name_.c_str());
+
+        // オプション処理.
         while (args.has_arg()) {
             if (args.prepare_get()) {  // option.
                 if (args.get_opt2('y', "--yes", skip_wait_)) {
 
                 } else if (args.get_opt2('l', "--list", do_list_)) {
 
+                } else if (args.get_opt2('c', "--clear", clear_flag_)) {
+
                 } else if (args.get_opt2('r', "--remove")) {
-                    op_type_ = OP_REMOVE;
+                    op_type_    = OP_REMOVE;
                 } else if (args.get_opt2('p', "--prepend")) {
-                    op_type_ = OP_PREPEND;
+                    op_type_    = OP_PREPEND;
                 } else if (args.get_opt2('a', "--append")) {
-                    op_type_ = OP_APPEND;
+                    op_type_    = OP_APPEND;
                 } else if (args.get_opt2('e', "--env")) {
                     targets_   |= TGT_PRC;
                 } else if (args.get_opt2('u', "--user")) {
@@ -731,7 +951,7 @@ private:
                         return Er;
                     }
                     var_name_ = StrUtl::utf8ToWcs(var_u8name_);
-                } else if (args.get_opt("--delete-var", do_del_var_)) {
+                } else if (args.get_opt2("--delete_var", "--delete-var", do_del_var_)) {
 
                 } else if (args.get_opt("--silent", silent_)) {
 
@@ -743,12 +963,10 @@ private:
                 }
             } else if (*args.get_arg() == '@') {
                 char const* fname = args.get_arg()+1;
-                string      tmp;
-                if (cmd_line_args_util::file_load(fname, tmp) == false) {
-                    eprintf("%s : File open error.\n", fname);
+                if (cmd_line_args_replace_res_file(args, fname) == false) {
+                    eprintf("%s : Response file open error.\n", fname);
                     return Er;
                 }
-                args.replace_response_str(tmp);
             } else { // file.
                 switch (op_type_) {
                 case OP_REMOVE : removes_.add( StrUtl::utf8ToWcs(args.get_arg())); break;
@@ -799,17 +1017,42 @@ private:
         return Ok;
     }
 
+    static bool nameIsPath(String const& name) {
+     #if defined(NDEBUG) || 0
+        return StrUtl::strEqu(name, C_PATH);
+     #else
+        return StrUtl::strEqu(name, C_PATH) || StrUtl::strEqu(name, _C("ESU_PATH"));
+     #endif
+    }
+
     /// 環境変数 name 削除.
     ///
     int delVar(String const& name, bool sys) {
-        if (StrUtl::strEqu(name, _C("PATH"))) {
+        if (nameIsPath(name)) {
             eprintf("'PATH' cannot be deleted.\n");
             return Er;
         }
         if (sys && !WinUtl::isAdmin())
             return WinUtl::restartAdmin() ? Ok : Er;
 
+        String before;
+        bool existed = WinUtl::readRegEnv(name.c_str(), sys, before);
+        bool historyBeforeOk = true;
+        if (existed) {
+            historyBeforeOk = AppLog::writeHistory(sys, "before", name, before);
+        }
         int rc = WinUtl::deleteRegEnv(name.c_str(), sys);
+        if (sys && !AppLog::writeOperation(AppLog::System, "delete", name,
+                rc > 0 ? "success" : (rc == 0 ? "not-found" : "failed"))) {
+            eprintf("Warning: Failed to write SYSTEM operation log.\n");
+        }
+        if (rc > 0 && existed) {
+            if (!historyBeforeOk || !AppLog::writeHistory(sys, "after", name, String())) {
+                eprintf("Warning: Failed to write environment history log.\n");
+            }
+        } else if (!historyBeforeOk) {
+            eprintf("Warning: Failed to write environment history log.\n");
+        }
         if (rc < 0) {
             eprintf("Failed to delete variable.\n");
         } else if (rc == 0) {
@@ -820,13 +1063,42 @@ private:
         return (rc >= 0) ? Ok : Er;
     }
 
+    /// idx番目のwin必須ディレクトリ名が spaths に含まれているか?
+    ///
+    bool isContainsRequiredDir(FilePaths const& spaths, size_t idx) {
+        assert(idx < win_required_directories_size);
+        return spaths.contains(win_required_directories[idx][0]) || spaths.contains(win_required_directories[idx][1]);
+    }
+
+    /// SYSTEM 環境変数 PATH が対象で、かつ、必要な最低限のディレクトリが足りなくなっているか?
+    /// もともと足りていない（あるいは別表現になってる) 時にも反応するが、とりあえず、仕方ないとする.
+    bool checkSystemPaths() {
+        if ((targets_ & TGT_SYS) == 0)
+            return true;
+        if (nameIsPath(var_name_)) {
+            auto spaths = sys_paths_;
+            editPaths(spaths);
+            for (size_t i = 0; i < win_required_directories_size; ++i) {
+                if (isContainsRequiredDir(spaths, i) == false) {
+                    eprintf("After the change, some essential directories are missing: %s\n"
+                            , StrUtl::wcsToUtf8(win_required_directories[i][0]).c_str());
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /// PATH 内容の編集.
     ///
     int edit() {
+        String const oldUsrStr = usr_str_;
+        String const oldSysStr = sys_str_;
+
         if (!silent_)
             printEnv(targets_, "### BEFORE ###\n");
 
-        if (removes_().empty() && prepends_().empty() && appends_().empty()) {
+        if (removes_().empty() && prepends_().empty() && appends_().empty() && !clear_flag_) {
             eprintf("No directories.\n");
             return Er;
         }
@@ -836,27 +1108,9 @@ private:
             return Er;
         }
 
-        if (targets_ & TGT_PRC) {
-            prc_paths_.remove(removes_(), true);
-            prc_paths_.remove(prepends_());
-            prc_paths_.remove(appends_());
-            prc_paths_.add(prepends_(), false);
-            prc_paths_.add(appends_() , true);
-        }
-        if (targets_ & TGT_USR) {
-            usr_paths_.remove(removes_(), true);
-            usr_paths_.remove(prepends_());
-            usr_paths_.remove(appends_());
-            usr_paths_.add(prepends_(), false);
-            usr_paths_.add(appends_() , true);
-        }
-        if (targets_ & TGT_SYS) {
-            sys_paths_.remove(removes_(), true);
-            sys_paths_.remove(prepends_());
-            sys_paths_.remove(appends_());
-            sys_paths_.add(prepends_(), false);
-            sys_paths_.add(appends_() , true);
-        }
+        if (targets_ & TGT_PRC) editPaths(prc_paths_);
+        if (targets_ & TGT_USR) editPaths(usr_paths_);
+        if (targets_ & TGT_SYS) editPaths(sys_paths_);
 
         prc_paths_.removeDup();
         usr_paths_.removeDup();
@@ -865,6 +1119,8 @@ private:
         prc_str_    = prc_paths_.join();
         usr_str_    = usr_paths_.join();
         sys_str_    = sys_paths_.join();
+        bool const usrChanged = oldUsrStr != usr_str_;
+        bool const sysChanged = oldSysStr != sys_str_;
 
         if (!silent_)
             printEnv(targets_, "\n### AFTER ###\n");
@@ -881,10 +1137,33 @@ private:
             bat_printf("set \"%s=%s\"\n", var_u8name_.c_str(), StrUtl::wcsToUtf8(prc_str_).c_str());
         }
         if (targets_ & TGT_USR) {
+            if (usrChanged
+                && !AppLog::writeHistory(AppLog::User, "before", var_name_, oldUsrStr)) {
+                eprintf("Warning: Failed to write USER environment history log.\n");
+            }
             rc1 = WinUtl::writeRegEnv(var_name_.c_str(), false, usr_str_, usr_reg_typ_);
+            //if (!AppLog::writeOperation( AppLog::User, "write", var_name_, rc1 ? "success" : "failed"))
+            //    eprintf("Warning: Failed to write SYSTEM operation log.\n");
+            if (rc1 && usrChanged
+                && !AppLog::writeHistory(AppLog::User, "after", var_name_, usr_str_)) {
+                eprintf("Warning: Failed to write USER environment history log.\n");
+            }
         }
         if (targets_ & TGT_SYS) {
+            // SYSTEM を編集するときには admin 権限が必要.
+            if (/*silent_ &&*/ (targets_ & TGT_SYS) && !WinUtl::isAdmin())
+                return WinUtl::restartAdmin() ? Ok : Er;
+            if (sysChanged
+                && !AppLog::writeHistory(AppLog::System, "before", var_name_, oldSysStr)) {
+                eprintf("Warning: Failed to write SYSTEM environment history log.\n");
+            }
             rc2 = WinUtl::writeRegEnv(var_name_.c_str(), true, sys_str_, sys_reg_typ_);
+            if (!AppLog::writeOperation( AppLog::System, "write", var_name_, rc2 ? "success" : "failed"))
+                eprintf("Warning: Failed to write SYSTEM operation log.\n");
+            if (rc2 && sysChanged
+                && !AppLog::writeHistory(AppLog::System, "after", var_name_, sys_str_)) {
+                eprintf("Warning: Failed to write SYSTEM environment history log.\n");
+            }
         }
 
         if (!rc0 | !rc1 | !rc2) {
@@ -896,6 +1175,18 @@ private:
             eprintf("\nDone.\n");
 
         return Ok;
+    }
+
+    void editPaths(FilePaths& paths) {
+        if (clear_flag_) {
+            paths.clear();
+        } else {
+            paths.remove(removes_(), true);
+            paths.remove(prepends_());
+            paths.remove(appends_());
+        }
+        paths.add(prepends_(), false);
+        paths.add(appends_() , true);
     }
 
     /// １キー入力待ち.
@@ -966,15 +1257,15 @@ private:
 
     /// エラー出力.
     ///
-    static int eprintf(char const* fmt, ...) {
+    static void eprintf(char const* fmt, ...) {
         va_list  args;
         va_start(args, fmt);
-        int      n  = vfprintf(stderr, fmt, args);
+        vfprintf(stderr, fmt, args);
         va_end(args);
-        return n;
     }
 
 };
+
 
 /// main エントリ.
 ///

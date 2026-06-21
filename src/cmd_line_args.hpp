@@ -618,17 +618,17 @@ namespace zatu {
     // Excerpt from other libraries.
     namespace cmd_line_args_util {
         template<typename C>
-        char*   fname_base(C const* p) {
+        C*   fname_base(C const* p) {
             C const *adr = p;
             while (*p) {
-                char c = *p++;
+                unsigned c = *p++;
                #if defined(_WIN32) || defined(ZATU_DOS)
                 if (c == ':' || c == '/' || c == '\\') adr = p;
                #else
                 if (c == ':' || c == '/') adr = p;
                #endif
             }
-            return (char*)adr;
+            return (C*)adr;
         }
 
         template<typename C>
@@ -716,6 +716,27 @@ namespace zatu {
                 *pRetCode = rc;
             return buf;
         }
+
+        template< unsigned int F=3, typename C=char> bool
+        cmd_line_args_insert_res_file(cmd_line_args<F,C>& args, char const* fname) {
+            if (file_exist(fname)) {
+                std::basic_string<C> tmp;
+                if (file_load(fname, tmp))
+                    return args.insert_response_str(tmp);
+            }
+            return false;
+        }
+
+        template< unsigned int F=3, typename C=char> bool
+        cmd_line_args_replace_res_file(cmd_line_args<F,C>& args, char const* fname) {
+            if (file_exist(fname)) {
+                std::basic_string<C> tmp;
+                if (file_load(fname, tmp))
+                    return args.replace_response_str(tmp);
+            }
+            return false;
+        }
+
     }   // cmd_line_args_util
 }   // zatu
 
