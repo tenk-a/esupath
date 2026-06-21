@@ -1,36 +1,24 @@
 ==== help ====
 [exit:1]
-==== invalid option ====
-Bad option --not-an-option
-
-Usage: esupath [オプション] <dir...>
-  環境変数 PATH の表示/追加/削除.
-[オプション]
- -l --list              PATH のディレクトリ一覧出力.
- -r --remove  <DIR...>  ディレクトリを削除. ワイルドカード指定可.
- -p --prepend <DIR...>  PATH の先頭にディレクトリ追加.
- -a --append  <DIR...>  PATH の最後にディレクトリ追加.
- -u --user              ユーザー環境変数を対象(レジストリ操作)
- -s --system            システム環境変数を対象(レジストリ操作)
- -e --env               現在プロセスの環境変数を対象.
- -b --batch <FILE>      現在プロセスの環境変数を対象、変更結果はバッチ出力.
- -y --yes               書き込み前のキー入力待ちをスキップ.
- -c --clear             PATH を全削除 (--var 変更時用).
-    --var <NAME>        PATH でなく対象環境変数を <NAME> に変更.
-    --delete-var        --var で指定した環境変数を削除.
-    --silent            確認のための編集前後の内容表示や入力待ちを行わない.
- @file                  file からコマンドライン引数を取得.
-
-# PATHから -r,-p,-a で指定のディレクトリを削除した後-p先頭-a最後への追加を行う.
-# -r のワイルドカード文字は ? * **。* は / \ にマッチせず、** はマッチする.
-# ダブりは後のモノが削除される.
-# 直接編集できるのは SYSTEM/USER レジストリのみ.
-# 現プロセスの環境変数へは編集結果を反映できない.
-# 現在の環境変数へ反映するには -b で出力したバッチを実行のこと.
-# https://github.com/tenk-a/esupath
+[help output:not-empty]
+==== short help ====
 [exit:1]
+[short help output:not-empty]
+==== invalid option ====
+[exit:1]
+[invalid option message:found]
+[invalid option help output:not-empty]
 ==== invalid variable name ====
 Invalid variable name : BAD-NAME
+[exit:1]
+==== missing --var argument ====
+--var requires a variable name.
+[exit:1]
+==== missing --batch argument ====
+-b,--batch requires a file name.
+[exit:1]
+==== missing response file ====
+dst\not-found.rsp : Response file open error.
 [exit:1]
 ==== edit without target ====
 When deleting or adding, -e,--env, -u,--user, -s,--system options are required.
@@ -50,3 +38,16 @@ No directories.
 [Current Process] ESUPATH_TEST ... size: 0
 
 [exit:1]
+==== user and system append ====
+When adding a path, --user and --system cannot be specified together.
+### BEFORE ###
+[SYSTEM Registry] ESUPATH_TEST ... size: 0
+
+[USER Registry] ESUPATH_TEST ... size: 0
+
+[exit:1]
+==== list without target ====
+[exit:0]
+[SYSTEM Registry:found]
+[USER Registry:found]
+[Current Process:found]

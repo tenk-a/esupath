@@ -26,3 +26,28 @@ add_executable(${PROJECT_NAME}
 install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION "${CMAKE_SOURCE_DIR}/bin"
 )
+
+include(CTest)
+
+if(BUILD_TESTING AND WIN32)
+  add_test(
+    NAME esupath-env
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -Command
+      "& '${CMAKE_SOURCE_DIR}/test/test.bat' env '$<TARGET_FILE:${PROJECT_NAME}>'; exit $LASTEXITCODE"
+  )
+  set_tests_properties(esupath-env PROPERTIES
+    LABELS "env"
+    TIMEOUT 60
+  )
+
+  add_test(
+    NAME esupath-user
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -Command
+      "& '${CMAKE_SOURCE_DIR}/test/test.bat' user '$<TARGET_FILE:${PROJECT_NAME}>'; exit $LASTEXITCODE"
+  )
+  set_tests_properties(esupath-user PROPERTIES
+    LABELS "user;registry"
+    RUN_SERIAL TRUE
+    TIMEOUT 60
+  )
+endif()

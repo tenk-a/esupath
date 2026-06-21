@@ -1,0 +1,122 @@
+==== response file CRLF ====
+[exit:0]
+[response stdout:empty]
+set "ESUPATH_TEST=y:\space path;y:\mid#hash;#quoted-head-hash;y:\quotemark;y:\quotedtail;y:\日本語"
+==== response file LF ====
+[exit:0]
+[response stdout:empty]
+[CRLF/LF:same]
+[Current Process] ESUPATH_TEST ... size: 6
+"y:\space path"
+"y:\mid#hash"
+"#quoted-head-hash"
+"y:\quotemark"
+"y:\quotedtail"
+"y:\日本語"
+
+[exit:0]
+==== path variants ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 0
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 9
+"y:\Alpha"
+"y:/slash/path"
+"y:\trail\"
+"y:\semi-one"
+"y:\semi-two"
+"y:\日本語"
+"y:\star\one"
+"y:\star\two\deep"
+"y:\Case"
+
+[exit:0]
+==== path matching ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 9
+"y:\Alpha"
+"y:/slash/path"
+"y:\trail\"
+"y:\semi-one"
+"y:\semi-two"
+"y:\日本語"
+"y:\star\one"
+"y:\star\two\deep"
+"y:\Case"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 5
+"y:\semi-one"
+"y:\semi-two"
+"y:\日本語"
+"y:\star\two\deep"
+"y:\Case"
+
+[exit:0]
+==== interactive Y ====
+
+Press 'Y' or enter-key to continue. 
+
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 0
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 1
+"y:\yes"
+
+[exit:0]
+==== interactive Enter ====
+
+Press 'Y' or enter-key to continue. 
+
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 1
+"y:\yes"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 2
+"y:\yes"
+"y:\enter"
+
+[exit:0]
+==== interactive N ====
+
+Press 'Y' or enter-key to continue. 
+
+Stop.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 2
+"y:\yes"
+"y:\enter"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\yes"
+"y:\enter"
+"y:\no"
+
+[exit:1]
+[reject batch:not-generated]
+==== silent output ====
+[exit:0]
+[silent stdout:empty]
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\yes"
+"y:\enter"
+"y:\silent"
+
+[exit:0]

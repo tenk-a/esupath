@@ -116,3 +116,5 @@ set "ESUPATH_TEST=y:\top;y:\last;y:\response file"
 [Current Process] ESUPATH_TEST ... size: 0
 
 [exit:0]
+==== delete missing variable ====
+[exit:0]
