@@ -193,94 +193,117 @@ namespace _detail {
      *  # Do not free malloc-memory, leave it to OS process termination.
      */
     template<typename C> bool
-    insert_str_to_args(C const* bgn, C const* end, int index, int& rArgc, C**& rArgv, bool& rAlloc) ZATU_NOEXCEPT {
-        std::size_t max_arg_sz = 0;
-        C**         argv    = rArgv;
-        C**         arg_ary = NULL;
-        bool        rc      = true;
-        int         num     = 0;
-        for (int pass = 0; pass < 2; ++pass) {
-            C const*    s   = bgn;
-            bool        dq  = false;
-            bool        cmt = false;
-            bool        ltop = true;
-            std::size_t arg_sz = 0;
+    get_response_arg(C const*& s, C const* end, bool& ltop, C* dst, std::size_t& rLen) ZATU_NOEXCEPT {
+        for (;;) {
             while (s < end) {
-                C   c = *s++;
+                C c = *s;
                 if (c == 0)
-                    break;
-                if (!dq) {
-                    if (c == C('\n')) {
-                        cmt  = false;
+                    return false;
+                if (unsigned(c) <= 0x20 || c == C(0x7f)) {
+                    ++s;
+                    if (c == C('\n'))
                         ltop = true;
-                    }
-                    if (cmt)
-                        continue;
-                    if (unsigned(c) <= 0x20 || c == 0x7f) {
-                        if (arg_sz) {
-                            if (max_arg_sz < arg_sz)
-                                max_arg_sz = arg_sz;
-                            if (pass) {
-                                argv[num] = str_n_dup(s-1 - arg_sz, arg_sz);
-                            }
-                            ++num;
-                        }
-                        arg_sz = 0;
-                        continue;
-                    } else if (c == C('"')) {
-                        dq = true;
-                        continue;
-                    } else if (c == C('#') && ltop) {
-                        cmt  = true;
-                        ltop = false;
-                        continue;
-                    }
-                } else {
-                    if (c == C('"')) {
-                        if (s < end && *s == C('"')) {
-                            ++s;
-                        } else {
-                            dq = false;
-                            continue;
-                        }
-                    }
+                    continue;
                 }
-                ++arg_sz;
-                ltop = false;
-            }
-            if (arg_sz) {
-                if (max_arg_sz < arg_sz)
-                    max_arg_sz = arg_sz;
-                if (pass) {
-                    argv[num] = str_n_dup(s - 1 - arg_sz, arg_sz);
+                if (c == C('#') && ltop) {
+                    do {
+                        c = *s++;
+                    } while (s < end && c != C('\n') && c != 0);
+                    if (c == C('\n'))
+                        ltop = true;
+                    else if (c == 0)
+                        return false;
+                    continue;
                 }
-                ++num;
-            }
-            if (pass)
-                break;
-            if (num == 0)
-                break;
-            std::size_t arg_ary_size = (rArgc + num + 1) * sizeof(C*);
-            arg_ary = (C**)std::calloc(1, arg_ary_size);
-            if (!arg_ary) {
-                rc = false;
                 break;
             }
-            for (int i = 0; i < index; ++i)
-                arg_ary[i] = argv[i];
-            for (int i = index; i < rArgc; ++i)
-                arg_ary[i+num] = argv[i];
-            if (rAlloc)
-                std::free(argv);
-            rAlloc  = true;
-            rArgv   = arg_ary;
-            argv    = arg_ary;
-            rArgc   += num;
-            num     = index;
+            if (s >= end)
+                return false;
+            break;
         }
-        if (!rc)
-            std::free(arg_ary);
-        return rc;
+
+        bool        dq  = false;
+        std::size_t len = 0;
+        ltop            = false;
+        while (s < end) {
+            C   c = *s++;
+            if (c == 0)
+                break;
+            if (!dq) {
+                if (unsigned(c) <= 0x20 || c == C(0x7f)) {
+                    --s;
+                    break;
+                }
+                if (c == C('"')) {
+                    dq = true;
+                    continue;
+                }
+            } else if (c == C('"')) {
+                if (s < end && *s == C('"')) {
+                    ++s;
+                } else {
+                    dq = false;
+                    continue;
+                }
+            }
+            if (dst)
+                dst[len] = c;
+            ++len;
+        }
+        if (dst)
+            dst[len] = 0;
+        rLen    = len;
+        return true;
+    }
+
+    /**
+     *  Parse response string and insert into argv.
+     *  # Do not free malloc-memory, leave it to OS process termination.
+     */
+    template<typename C> bool
+    insert_str_to_args(C const* bgn, C const* end, int index, int& rArgc, C**& rArgv, bool& rAlloc) ZATU_NOEXCEPT {
+        C const*    s       = bgn;
+        bool        ltop    = true;
+        std::size_t len     = 0;
+        int         num     = 0;
+        while (get_response_arg(s, end, ltop, (C*)0, len))
+            ++num;
+        if (num == 0)
+            return false;
+
+        C** arg_ary = (C**)std::calloc(std::size_t(rArgc + num + 1), sizeof(C*));
+        if (!arg_ary)
+            return false;
+
+        for (int i = 0; i < index; ++i)
+            arg_ary[i]       = rArgv[i];
+        for (int i = index; i < rArgc; ++i)
+            arg_ary[i + num] = rArgv[i];
+
+        s    = bgn;
+        ltop = true;
+        for (int i = 0; i < num; ++i) {
+            C const* arg_bgn  = s;
+            bool     arg_ltop = ltop;
+            C*       arg      = NULL;
+            if (get_response_arg(s, end, ltop, (C*)0, len))
+                arg = (C*)std::malloc((len + 1) * sizeof(C));
+            if (arg) {
+                get_response_arg(arg_bgn, end, arg_ltop, arg, len);
+                arg_ary[index + i] = arg;
+            } else {
+                while (--i >= 0)
+                    std::free(arg_ary[index + i]);
+                std::free(arg_ary);
+                return false;
+            }
+        }
+        if (rAlloc)
+            std::free(rArgv);
+        rAlloc  = true;
+        rArgv   = arg_ary;
+        rArgc  += num;
+        return true;
     }
 
 }   // _detail
