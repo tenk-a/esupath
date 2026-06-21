@@ -1,4 +1,4 @@
-﻿# esupath.exe & besupath.bat
+﻿# esupath.exe
 
 Windows にて SYSTEM/USER リポジトリや、(cmd)カレントプロセスの  
 環境変数 PATH のディレクトリ表示/追加/削除
@@ -31,8 +31,8 @@ Usage: esupath [オプション] <dir...>
 環境変数 PATH から -r,-p,-a で指定のディレクトリを削除したあと、  
 先頭および最後への追加を行う。
 
-```bat: ex1
-:例: USER PATH の後ろに 3つパスを追加.
+```batch
+::例: USER PATH の後ろに 3つパスを追加.  
 esupath -u -a c:\foo\bin "d:bar\bin;e:\baz\bin"
 ```
 
@@ -44,8 +44,8 @@ esupath -u -a c:\foo\bin "d:bar\bin;e:\baz\bin"
 にマッチする。
 ```
 
-```bat:
-::例: USER の PATH から 既存の /CMake を含むディレクトリを削除して、新規に先頭に C:\tools\CMake を追加.
+```batch
+::例: USER の PATH から 既存の /CMake を含むディレクトリを削除して、新規に先頭に C:\tools\CMake を追加.  
 esupath -u -r "**/CMake**" -p C:\tools\CMake
 ```
 
@@ -53,8 +53,8 @@ esupath -u -r "**/CMake**" -p C:\tools\CMake
 現プロセスの環境変数へは編集結果を直接反映できない。  
 現在の環境変数へ反映するには -b --batch で出力したバッチを実行して行う。  
 
-```bat: ex3 
-::例: PATH の先頭に c:\foo\bin を追加し set PATH=...をtmp.batに出力. 成功してたら実行.
+```batch
+::例: PATH の先頭に c:\foo\bin を追加し set PATH=...をtmp.batに出力. 成功してたら実行.  
 esupath -e -b tmp.bat -p "c:\foo\bin"
 if exist tmp.bat  call tmp.bat
 ```
@@ -73,13 +73,14 @@ C:\ProgramData\esupath\Logs\esupath_system.his
 C:\Users\<ユーザー>\AppData\esupath\Logs\esupath_user.his
 ```
 
-SYSTEM 環境変数の書き込み・削除結果は、次の操作ログへ UTF-8 で追記する。
+SYSTEM 環境変数の書き込み・削除結果は、次の操作ログへで追記する。
 
 ```text
 C:\ProgramData\esupath\Logs\esupath_system.log
 ```
 
 ログ用ディレクトリとファイルは、初回の書き込み時に自動作成される。
+
 
 ## besupath.bat
 
@@ -89,13 +90,39 @@ besupath.bat は esupath -b を用いて カレントプロセスの PATH 設定
 全て esupath.exe 渡される。  
 ※ ただしバッチの引数文字列の仕様/制限の影響をうける。
 
-```bat: ex4
+```batch
 ::例: カレントプロセスの PATH の最後に c:\bin を追加.
 besupath -a "c:\bin"
 
 ::例: カレントプロセスと USER の PATH から /CMake を含むディレクトリを削除し、c:\Tools\CMakeを先頭に追加.
 besupath -u -r "**/CMake**" -p "c:\Tools\CMake"
 ```
+
+## coreUtilsPrio.bat
+
+esupath を用いたサンプルバッチ.
+
+[MS の coreutils](https://github.com/microsoft/coreutils) を windows に入れると、  
+find ・ sort コマンドが既存のwindowsコマンドとバッティングする。  
+
+windows 標準のこれらを使うことはそうそうなく、  
+coreutils 優先で個人的にはほぼ問題ないけれど、  
+古いバッチの中で使っていることがあるかもしれない。
+
+そういう場合に、PATH で coreutils/bin を windows/system32 より  
+前後させて win 標準(find,sort) を使えるようにする/しないを変更するバッチ.
+
+```
+> coreutilsPrio.bat [first|last] [system]
+
+first   PATHの先頭に coreutils/bin を移動.
+last    PATHの最後に coreutils/bin を移動.
+system  SYSTEM リポジトリの PATH も対象にする.
+```
+
+## 
+
+2026-06-21 https://github.com/tenk-a/misc.git 内の esupath/ を独立させた.
 
 
 writen by tenk* ( https://github.com/tenk-a/ )

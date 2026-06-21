@@ -3,6 +3,7 @@
  * @brief Show/add/remove the PATH of the SYSTEM/USER (Windows)
  * @author Masashi Kitamura ( https://github.com/tenk-a/ )
  * @date 2025-2026
+ * @license Boost Software License - Version 1.0
  */
 
 #include <cstdio>
@@ -65,6 +66,7 @@ static char const usage_jp[] = ""
        "# 直接編集できるのは SYSTEM/USER レジストリのみ.\n"
        "# 現プロセスの環境変数へは編集結果を反映できない.\n"
        "# 現在の環境変数へ反映するには -b で出力したバッチを実行のこと.\n"
+       "# https://github.com/tenk-a/esupath\n"
        ;
 #endif
 
@@ -95,6 +97,7 @@ static char const usage_en[] = ""
        "# Only SYSTEM/USER registry variables can be edited directly.\n"
        "# The current process variable cannot be changed by this program.\n"
        "# Run the batch file written by -b to update the current shell.\n"
+       "# https://github.com/tenk-a/esupath\n"
        ;
 
 Char const* const win_required_directories[][2] = {

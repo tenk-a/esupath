@@ -3,6 +3,7 @@
  * @brief Get command line arguments.
  * @author Masashi Kitamura (tenka@6809.net)
  * @date 2023-12-03
+ * @license Boost Software License - Version 1.0
  * @note
  *
  *  ex)

@@ -14,7 +14,7 @@ if /I "%1"=="last"    set "move_op=--append"
 if /I "%1"=="top"     set "move_op=--prepend"
 if /I "%1"=="bottom"  set "move_op=--append"
 if /I "%1"=="system"  set "RegMode=--system"
-if /I "%1"=="user"    set "RegMode=--user"
+::if /I "%1"=="user"    set "RegMode=--user"
 shift
 goto ARG_LOOP
 :ARG_LOOP_END
@@ -34,14 +34,14 @@ goto END
 
 :USAGE
 chcp 65001
-@echo coreutilsPrio.bat [first/last] [system/user]
+@echo coreutilsPrio.bat [first/last] [system]
 @echo MS 製 coreutils\bin を環境変数 PATH の先頭または最後に移動する.
 @echo   first   先頭へ移動.
 @echo   last    最後へ移動.
 @echo   system  SYSTEM レジストリの PATH も変更. (通常)
-@echo   user    USER レジストリの PATH も変更. (ユーザーが独自設定していたとき用)
+::@echo   user    USER レジストリの PATH も変更. (ユーザーが独自設定していたとき用)
 @echo:
-@echo syste/user 未指定時は現プロセスのPATHのみ変更.
+@echo system 未指定時は現プロセスのPATHのみ変更.
 @echo coreutils インストール時、SYSTEM レジストリの PATH に追加されている.
 @echo のでレジストリの PATH も変更する場合は system を指定のこと.
 ::@echo:
