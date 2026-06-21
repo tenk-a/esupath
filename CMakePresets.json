@@ -1,0 +1,63 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vc-base",
+      "hidden": true,
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}"
+      }
+    },
+    {
+      "name": "vc-x64",
+      "displayName": "VC++ x64",
+      "description": "Visual Studio 2026 の x64 構成",
+      "inherits": "vc-base",
+      "architecture": "x64"
+    },
+    {
+      "name": "vc-win32",
+      "displayName": "VC++ Win32",
+      "description": "Visual Studio 2026 の Win32 構成",
+      "inherits": "vc-base",
+      "architecture": "Win32"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vc-x64-debug",
+      "displayName": "VC++ x64 Debug",
+      "configurePreset": "vc-x64",
+      "configuration": "Debug",
+      "jobs": 0
+    },
+    {
+      "name": "vc-x64-release",
+      "displayName": "VC++ x64 Release",
+      "configurePreset": "vc-x64",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "vc-win32-debug",
+      "displayName": "VC++ Win32 Debug",
+      "configurePreset": "vc-win32",
+      "configuration": "Debug",
+      "jobs": 0
+    },
+    {
+      "name": "vc-win32-release",
+      "displayName": "VC++ Win32 Release",
+      "configurePreset": "vc-win32",
+      "configuration": "Release",
+      "jobs": 0
+    }
+  ]
+}

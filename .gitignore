@@ -39,3 +39,7 @@ my_*
 
 *.exe
 a.out
+
+# Share this project's VS Code build/debug configuration.
+!.vscode/
+!.vscode/*.json

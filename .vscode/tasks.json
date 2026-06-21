@@ -1,0 +1,84 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: configure VC++ x64",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "vc-x64"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: build VC++ x64 Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "vc-x64-debug"
+      ],
+      "dependsOn": "CMake: configure VC++ x64",
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "CMake: build VC++ x64 Release",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "vc-x64-release"
+      ],
+      "dependsOn": "CMake: configure VC++ x64",
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "CMake: configure VC++ Win32",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "vc-win32"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: build VC++ Win32 Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "vc-win32-debug"
+      ],
+      "dependsOn": "CMake: configure VC++ Win32",
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "CMake: build VC++ Win32 Release",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "vc-win32-release"
+      ],
+      "dependsOn": "CMake: configure VC++ Win32",
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    }
+  ]
+}
