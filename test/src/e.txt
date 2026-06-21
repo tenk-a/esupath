@@ -1,0 +1,118 @@
+==== append / semicolon split / duplicate ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 0
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+
+[exit:0]
+==== prepend / append long options ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 5
+"y:\top"
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+"y:\last"
+
+[exit:0]
+==== remove exact and wildcards ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 5
+"y:\top"
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+"y:\last"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\foo"
+"y:\last"
+
+[exit:0]
+==== move existing entries ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\foo"
+"y:\last"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\last"
+"y:\top"
+
+[exit:0]
+==== clear / option order ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\last"
+"y:\top"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 2
+"y:\top"
+"y:\last"
+
+[exit:0]
+==== list ====
+[Current Process] ESUPATH_TEST ... size: 2
+"y:\top"
+"y:\last"
+
+[exit:0]
+==== silent ====
+[exit:0]
+==== response file ====
+
+Done.
+### BEFORE ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\last"
+"y:\silent"
+
+
+### AFTER ###
+[Current Process] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\last"
+"y:\response file"
+
+[exit:0]
+==== batch file ====
+set "ESUPATH_TEST=y:\top;y:\last;y:\response file"
+==== delete variable ====
+[exit:0]
+==== list after delete ====
+[Current Process] ESUPATH_TEST ... size: 0
+
+[exit:0]

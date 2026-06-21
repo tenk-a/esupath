@@ -1,0 +1,117 @@
+==== append / semicolon split / duplicate ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 0
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+
+[exit:0]
+==== prepend / append long options ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 5
+"y:\top"
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+"y:\last"
+
+[exit:0]
+==== remove exact and wildcards ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 5
+"y:\top"
+"y:\foo"
+"y:\bar"
+"y:\baz (1)"
+"y:\last"
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\foo"
+"y:\last"
+
+[exit:0]
+==== move existing entries ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\foo"
+"y:\last"
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\last"
+"y:\top"
+
+[exit:0]
+==== clear / option order ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\foo"
+"y:\last"
+"y:\top"
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 2
+"y:\top"
+"y:\last"
+
+[exit:0]
+==== list ====
+[USER Registry] ESUPATH_TEST ... size: 2
+"y:\top"
+"y:\last"
+
+[exit:0]
+==== silent ====
+[exit:0]
+==== response file ====
+
+Done.
+### BEFORE ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\last"
+"y:\silent"
+
+
+### AFTER ###
+[USER Registry] ESUPATH_TEST ... size: 3
+"y:\top"
+"y:\last"
+"y:\response file"
+
+[exit:0]
+==== delete variable ====
+Deleted variable
+[exit:0]
+==== list after delete ====
+[USER Registry] ESUPATH_TEST ... size: 0
+
+[exit:0]
