@@ -1,6 +1,6 @@
 ﻿# esupath.exe
 
-Windows にて SYSTEM/USER リポジトリや、(cmd)カレントプロセスの  
+Windows にて SYSTEM/USER リポジトリや、cmd の現プロセスの、  
 環境変数 PATH のディレクトリ表示/追加/削除
 
 ## esupath
@@ -25,18 +25,14 @@ Usage: esupath [オプション]
  @file               file からコマンドライン引数を取得.
 ```
 
--r,-p,-a は直後の引数 1個だけを取得する。  
-複数パスは ; で区切って１個にするか、
-同じオプションを繰り返して複数パスを指定する。  
-オプションに属さない単独のパス引数はエラーになる。
-
-環境変数 PATH から -r,-p,-a で指定のディレクトリを削除したあと、  
-先頭(-p)および最後(-a)への追加を行う。  
-ダブりは後のモノが削除される。
+-r,-p,-a のパスは ; で区切って複数パスを指定可能。  
+同じオプションを複数指定するのも可能。  
+オプションに属さない単独のパス引数はエラーになる。  
+ダブりは後のモノが削除される。  
 
 ```batch
 ::例: USER PATH の後ろに 3つパスを追加.  
-esupath -u -a c:\foo\bin "d:bar\bin;e:\baz\bin"
+esupath -u -a c:\foo\bin -a "d:bar\bin;e:\baz\bin"
 ```
 
 削除でのワイルドカード文字は ? * **。  
@@ -48,7 +44,8 @@ esupath -u -a c:\foo\bin "d:bar\bin;e:\baz\bin"
 ```
 
 ```batch
-::例: USER の PATH から 既存の /CMake を含むディレクトリを削除して、新規に先頭に C:\tools\CMake を追加.  
+::例: USER の PATH から 既存の /CMake を含むディレクトリを削除して、
+::    新規に先頭に C:\tools\CMake を追加.  
 esupath -u -r "**/CMake**" -p C:\tools\CMake
 ```
 
@@ -64,7 +61,7 @@ if exist tmp.bat  call tmp.bat
 
 SYSTEM レジストリの変更は管理者権限が必要で、ない場合は昇格ダイアログが出る。  
 昇格後、ツールはもう一度最初から実行される。  
-※ ので再度状態表示されたり入力待ちになった場合はやりなおしてください。
+※ なので再度状態表示されたり入力待ちになった場合は入力しなおし。
 
 
 ### ログ
@@ -89,7 +86,7 @@ C:\ProgramData\esupath\Logs\esupath_system.log
 
 besupath.bat は esupath -b を用いて カレントプロセスの PATH 設定をする。
 
-必ず -b "テンポラリファイル" が指定され、バッチの引数は  
+必ず -b "テンポラリファイル" が指定され、バッチの引数は
 全て esupath.exe 渡される。  
 ※ ただしバッチの引数文字列の仕様/制限の影響をうける。
 
@@ -97,23 +94,21 @@ besupath.bat は esupath -b を用いて カレントプロセスの PATH 設定
 ::例: カレントプロセスの PATH の最後に c:\bin を追加.
 besupath -a "c:\bin"
 
-::例: カレントプロセスと USER の PATH から /CMake を含むディレクトリを削除し、c:\Tools\CMakeを先頭に追加.
+::例: カレントプロセスと USER の PATH から /CMake を含むディレクトリを削除し、
+::    c:\Tools\CMake を先頭に追加.
 besupath -u -r "**/CMake**" -p "c:\Tools\CMake"
 ```
 
 ## coreUtilsPrio.bat
 
-esupath を用いたサンプルバッチ.
+esupath を用いたサンプル。
 
-[MS の coreutils](https://github.com/microsoft/coreutils) を windows に入れると、  
+[MS の coreutils](https://github.com/microsoft/coreutils) を windows に入れると、
 find ・ sort コマンドが既存のwindowsコマンドとバッティングする。  
 
-windows 標準のこれらを使うことはそうそうなく、  
-coreutils 優先で個人的にはほぼ問題ないけれど、  
-古いバッチの中で使っていることがあるかもしれない。
-
-そういう場合に、PATH で coreutils/bin を windows/system32 より  
-前後させて win 標準(find,sort) を使えるようにする/しないを変更するバッチ.
+coreutils のを使うか、windows 標準のを使うか、を切り替えるために、
+PATH で coreutils/bin を windows/system32 より前後させて、
+win 標準(find,sort) を使えるようにする/しないを変更するバッチ。
 
 ```
 > coreutilsPrio.bat [first|last] [system]
@@ -125,8 +120,8 @@ system  SYSTEM リポジトリの PATH も対象にする.
 
 ## 
 
-2026-06-21 https://github.com/tenk-a/misc.git 内の esupath/ を独立させた.
-2026-07-1  -r -p -a の引数は1つのみ有効ということに変更(空白含パス名を""で囲わなかった時にエラーにするため)
+2026-06-21 https://github.com/tenk-a/misc.git 内の esupath/ を独立させた  
+2026-07-1  -r -p -a の引数は1つのみに変更(空白含パス名を""で囲わなかった時にエラーにするため)
 
 
 writen by tenk* ( https://github.com/tenk-a/ )
