@@ -20,6 +20,18 @@ Invalid variable name : BAD-NAME
 ==== missing response file ====
 dst\not-found.rsp : Response file open error.
 [exit:1]
+==== missing remove argument ====
+-r,--remove requires one path argument.
+[exit:1]
+==== missing prepend argument ====
+-p,--prepend requires one path argument.
+[exit:1]
+==== missing append argument ====
+-a,--append requires one path argument.
+[exit:1]
+==== standalone path argument ====
+Unexpected standalone argument: y:\bar
+[exit:1]
 ==== edit without target ====
 When deleting or adding, -e,--env, -u,--user, -s,--system options are required.
 [exit:1]

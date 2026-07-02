@@ -42,26 +42,29 @@ using   StrVec  = vector<String>;
 #if defined(USE_JP)
 //static wchar_t const usage_jp[] = L""
 static char const usage_jp[] = ""
-       "Usage: esupath [オプション] <dir...>\n"
+       "Usage: esupath [オプション]\n"
        "  環境変数 PATH の表示/追加/削除.\n"
        "[オプション]\n"
-       " -l --list              PATH のディレクトリ一覧出力.\n"
-       " -r --remove  <DIR...>  ディレクトリを削除. ワイルドカード指定可.\n"
-       " -p --prepend <DIR...>  PATH の先頭にディレクトリ追加.\n"
-       " -a --append  <DIR...>  PATH の最後にディレクトリ追加.\n"
-       " -u --user              ユーザー環境変数を対象(レジストリ操作)\n"
-       " -s --system            システム環境変数を対象(レジストリ操作)\n"
-       " -e --env               現在プロセスの環境変数を対象.\n"
-       " -b --batch <FILE>      現在プロセスの環境変数を対象、変更結果はバッチ出力.\n"
-       " -y --yes               書き込み前のキー入力待ちをスキップ.\n"
-       " -c --clear             PATH を全削除 (--var 変更時用).\n"
-       "    --var <NAME>        PATH でなく対象環境変数を <NAME> に変更.\n"
-       "    --delete-var        --var で指定した環境変数を削除.\n"
-       "    --silent            確認のための編集前後の内容表示や入力待ちを行わない.\n"
-       " @file                  file からコマンドライン引数を取得.\n"
+       " -l --list           PATH のディレクトリ一覧出力.\n"
+       " -r --remove  <DIRS> ディレクトリを削除. ワイルドカード指定可.\n"
+       " -p --prepend <DIRS> PATH の先頭にディレクトリ追加.\n"
+       " -a --append  <DIRS> PATH の最後にディレクトリ追加.\n"
+       " -u --user           ユーザー環境変数を対象(レジストリ操作)\n"
+       " -s --system         システム環境変数を対象(レジストリ操作)\n"
+       " -e --env            現プロセスの環境変数を対象.\n"
+       " -b --batch <FILE>   現プロセスの環境変数を対象、結果はバッチ出力.\n"
+       " -y --yes            書き込み前のキー入力待ちをスキップ.\n"
+       " -c --clear          PATH をクリア (--var 変更時用).\n"
+       "    --var <NAME>     PATH でなく対象環境変数を <NAME> に変更.\n"
+       "    --delete-var     --var で指定した環境変数を削除.\n"
+       "    --silent         編集前後の内容表示確認や入力待ちを行わない.\n"
+       " @file               file からコマンドライン引数を取得.\n"
        "\n"
-       "# PATHから -r,-p,-a で指定のディレクトリを削除した後-p先頭-a最後への追加を行う.\n"
-       "# -r のワイルドカード文字は ? * **。* は / \\ にマッチせず、** はマッチする.\n"
+       "# -r,-p,-a のパスは ; で区切って複数パスを指定可能.\n"
+       "# 同じオプションを複数指定するのも可能.\n"
+       "# オプションに属さない単独のパス引数はエラー.\n"
+       "# PATHから-r,-p,-a指定ディレクトリを削除後 -p先頭-a最後へ追加する.\n"
+       "# -r のワイルドカード文字は ? * **。 ** は / \\ にもマッチする *\n"
        "# ダブりは後のモノが削除される.\n"
        "# 直接編集できるのは SYSTEM/USER レジストリのみ.\n"
        "# 現プロセスの環境変数へは編集結果を反映できない.\n"
@@ -71,32 +74,34 @@ static char const usage_jp[] = ""
 #endif
 
 static char const usage_en[] = ""
-       "Usage: esupath [options] <dir...>\n"
+       "Usage: esupath [options]\n"
        "  Show/add/remove directories in the PATH environment variable.\n"
        "[options]\n"
-       " -l --list              List directories in PATH.\n"
-       " -r --remove  <DIR...>  Remove directories. Wildcards are allowed.\n"
-       " -p --prepend <DIR...>  Add directories to the beginning of PATH.\n"
-       " -a --append  <DIR...>  Add directories to the end of PATH.\n"
-       " -u --user              Target the user environment variable.\n"
-       " -s --system            Target the system environment variable.\n"
-       " -e --env               Target the current process environment.\n"
-       " -b --batch <FILE>      Target current env. and write a batch file.\n"
-       " -y --yes               Do not wait for a key before writing.\n"
-       " -c --clear             TODO\n"
-       "    --var <NAME>        Use NAME instead of PATH.\n"
-       "    --delete-var        Delete the variable named by --var.\n"
-       "    --silent            Do not show before/after or wait for input.\n"
-       " @file                  Read command line arguments from file.\n"
+       " -l --list           List directories in PATH.\n"
+       " -r --remove  <DIRS> Remove directories. Wildcards are allowed.\n"
+       " -p --prepend <DIRS> Add directories to the beginning of PATH.\n"
+       " -a --append  <DIRS> Add directories to the end of PATH.\n"
+       " -u --user           Target the user environment variable.\n"
+       " -s --system         Target the system environment variable.\n"
+       " -e --env            Target the current process environment.\n"
+       " -b --batch <FILE>   Target current env.; write result as a batch file.\n"
+       " -y --yes            Skip the key wait before writing.\n"
+       " -c --clear          Clear PATH (for use when changing --var).\n"
+       "    --var <NAME>     Use NAME instead of PATH.\n"
+       "    --delete-var     Delete the variable specified by --var.\n"
+       "    --silent         Do not show before/after or wait for input.\n"
+       " @file               Read command line arguments from file.\n"
        "\n"
-       "# Paths specified by -r, -p, and -a are removed from PATH first.\n"
-       "# Then -p paths are added to the beginning, and -a paths to the end.\n"
-       "# Wildcards for -r are ?, *, and **. * does not match / or \\.\n"
-       "# ** matches / and \\.\n"
-       "# Duplicate paths are removed; the earlier path is kept.\n"
+       "# Separate multiple paths for -r, -p, or -a with ';'.\n"
+       "# The same option may be specified multiple times.\n"
+       "# A standalone path argument not belonging to an option is an error.\n"
+       "# First remove paths given by -r, -p, and -a from PATH.\n"
+       "# Then prepend -p paths and append -a paths.\n"
+       "# Wildcards for -r are ?, *, and **. ** also matches / and \\.\n"
+       "# When duplicate paths exist, later entries are removed.\n"
        "# Only SYSTEM/USER registry variables can be edited directly.\n"
-       "# The current process variable cannot be changed by this program.\n"
-       "# Run the batch file written by -b to update the current shell.\n"
+       "# Changes cannot be applied to the current process environment.\n"
+       "# To update the current environment, run the batch file written by -b.\n"
        "# https://github.com/tenk-a/esupath\n"
        ;
 
@@ -926,6 +931,7 @@ private:
         cmd_line_args_insert_res_file(args, conf_name_.c_str());
 
         // オプション処理.
+        string path_arg;
         while (args.has_arg()) {
             if (args.prepare_get()) {  // option.
                 if (args.get_opt2('y', "--yes", skip_wait_)) {
@@ -934,12 +940,27 @@ private:
 
                 } else if (args.get_opt2('c', "--clear", clear_flag_)) {
 
-                } else if (args.get_opt2('r', "--remove")) {
-                    op_type_    = OP_REMOVE;
-                } else if (args.get_opt2('p', "--prepend")) {
-                    op_type_    = OP_PREPEND;
-                } else if (args.get_opt2('a', "--append")) {
-                    op_type_    = OP_APPEND;
+                } else if ((path_arg.clear(), args.get_opt2('r', "--remove", path_arg))) {
+                    if (path_arg.empty()) {
+                        eprintf("-r,--remove requires one path argument.\n");
+                        return Er;
+                    }
+                    op_type_ = OP_REMOVE;
+                    removes_.add(StrUtl::utf8ToWcs(path_arg));
+                } else if ((path_arg.clear(), args.get_opt2('p', "--prepend", path_arg))) {
+                    if (path_arg.empty()) {
+                        eprintf("-p,--prepend requires one path argument.\n");
+                        return Er;
+                    }
+                    op_type_ = OP_PREPEND;
+                    prepends_.add(StrUtl::utf8ToWcs(path_arg));
+                } else if ((path_arg.clear(), args.get_opt2('a', "--append", path_arg))) {
+                    if (path_arg.empty()) {
+                        eprintf("-a,--append requires one path argument.\n");
+                        return Er;
+                    }
+                    op_type_ = OP_APPEND;
+                    appends_.add(StrUtl::utf8ToWcs(path_arg));
                 } else if (args.get_opt2('e', "--env")) {
                     targets_   |= TGT_PRC;
                 } else if (args.get_opt2('u', "--user")) {
@@ -978,13 +999,9 @@ private:
                     eprintf("%s : Response file open error.\n", fname);
                     return Er;
                 }
-            } else { // file.
-                switch (op_type_) {
-                case OP_REMOVE : removes_.add( StrUtl::utf8ToWcs(args.get_arg())); break;
-                case OP_PREPEND: prepends_.add(StrUtl::utf8ToWcs(args.get_arg())); break;
-                case OP_APPEND : appends_.add( StrUtl::utf8ToWcs(args.get_arg())); break;
-                default: eprintf("Files are only needed when using --remove, --prepend, or --append.\n"); return Er;
-                }
+            } else {
+                eprintf("Unexpected standalone argument: %s\n", args.get_arg());
+                return Er;
             }
         }
         return Ok;

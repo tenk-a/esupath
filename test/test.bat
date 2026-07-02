@@ -60,8 +60,8 @@ if /I "%ESU%"=="e" (
 )
 
 call :SET_APPLY 01
-> "%OUT%" echo ==== append / semicolon split / duplicate ====
-"%EXE%" -y %TARGET_LONG% %BATCH_OPT% --var %TEST_VAR% -a "y:\foo" "y:\bar;y:\baz (1)" "y:\foo" >>"%OUT%" 2>&1
+> "%OUT%" echo ==== append / semicolon split / repeated option / duplicate ====
+"%EXE%" -y %TARGET_LONG% %BATCH_OPT% --var %TEST_VAR% -a "y:\foo;y:\bar" -a "y:\baz (1);y:\foo" >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
 call :APPLY_ENV
 
@@ -73,7 +73,7 @@ call :APPLY_ENV
 
 call :SET_APPLY 03
 >>"%OUT%" echo ==== remove exact and wildcards ====
-"%EXE%" -y %TARGET% %BATCH_OPT% --var %TEST_VAR% --remove "y:\b?r" "y:\**z*" >>"%OUT%" 2>&1
+"%EXE%" -y %TARGET% %BATCH_OPT% --var %TEST_VAR% --remove "y:\b?r;y:\**z*" >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
 call :APPLY_ENV
 
@@ -164,6 +164,22 @@ call :RECORD_RC "%OUT%"
 "%EXE%" @dst\not-found.rsp >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
 
+>>"%OUT%" echo ==== missing remove argument ====
+"%EXE%" -e --var %TEST_VAR% --remove >>"%OUT%" 2>&1
+call :RECORD_RC "%OUT%"
+
+>>"%OUT%" echo ==== missing prepend argument ====
+"%EXE%" -e --var %TEST_VAR% --prepend >>"%OUT%" 2>&1
+call :RECORD_RC "%OUT%"
+
+>>"%OUT%" echo ==== missing append argument ====
+"%EXE%" -e --var %TEST_VAR% --append >>"%OUT%" 2>&1
+call :RECORD_RC "%OUT%"
+
+>>"%OUT%" echo ==== standalone path argument ====
+"%EXE%" -e --var %TEST_VAR% --append "y:\foo" "y:\bar" >>"%OUT%" 2>&1
+call :RECORD_RC "%OUT%"
+
 >>"%OUT%" echo ==== edit without target ====
 "%EXE%" -y --var %TEST_VAR% -a "y:\foo" >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
@@ -209,14 +225,14 @@ set "%TEST_VAR%="
 > "%RSP_CRLF%" (
     echo # full-line comment
     echo.
-    echo --silent --env --batch %RSP_BATCH% --var %TEST_VAR% --clear --append
-    echo "y:\space path"
-    echo "y:\mid#hash"
-    echo "#quoted-head-hash"
-    echo ""
-    echo "y:\quote""mark"
-    echo "y:\quoted"tail
-    echo "y:\日本語"
+    echo --silent --env --batch %RSP_BATCH% --var %TEST_VAR% --clear
+    echo --append "y:\space path"
+    echo --append "y:\mid#hash"
+    echo --append "#quoted-head-hash"
+    echo --append ";"
+    echo --append "y:\quote""mark"
+    echo --append "y:\quoted"tail
+    echo --append "y:\日本語"
 )
 powershell -NoProfile -Command ^
     "$p='dst\response_crlf.rsp'; $q='dst\response_lf.rsp'; $s=[IO.File]::ReadAllText($p); [IO.File]::WriteAllText($q,$s.Replace(\"`r`n\",\"`n\"),[Text.UTF8Encoding]::new($false))"
@@ -246,13 +262,13 @@ call :RECORD_RC "%OUT%"
 set "%TEST_VAR%="
 set "APPLY=dst\advanced_paths_01.bat"
 >>"%OUT%" echo ==== path variants ====
-"%EXE%" -y --env --batch "%APPLY%" --var %TEST_VAR% --clear --append "y:\Alpha" "y:/slash/path" y:\trail\ ";y:\semi-one;;y:\semi-two;" "y:\日本語" "y:\star\one" "y:\star\two\deep" "y:\Case" "Y:\case" >>"%OUT%" 2>&1
+"%EXE%" -y --env --batch "%APPLY%" --var %TEST_VAR% --clear --append "y:\Alpha;y:/slash/path" --append y:\trail\ --append ";y:\semi-one;;y:\semi-two;" --append "y:\日本語" --append "y:\star\one;y:\star\two\deep" --append "y:\Case;Y:\case" >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
 call :APPLY_FILE "%APPLY%"
 
 set "APPLY=dst\advanced_paths_02.bat"
 >>"%OUT%" echo ==== path matching ====
-"%EXE%" -y --env --batch "%APPLY%" --var %TEST_VAR% --remove "y:\star\*" "z:\not-found*" "Y:\ALPHA" "y:\slash\path" "y:\trail" >>"%OUT%" 2>&1
+"%EXE%" -y --env --batch "%APPLY%" --var %TEST_VAR% --remove "y:\star\*;z:\not-found*" --remove "Y:\ALPHA;y:\slash\path;y:\trail" >>"%OUT%" 2>&1
 call :RECORD_RC "%OUT%"
 call :APPLY_FILE "%APPLY%"
 
