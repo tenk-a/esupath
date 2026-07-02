@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 24,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
@@ -10,24 +10,29 @@
       "name": "vc-base",
       "hidden": true,
       "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "cacheVariables": {
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}"
-      }
+      "binaryDir": "${sourceDir}/build/${presetName}"
     },
     {
       "name": "vc-x64",
       "displayName": "VC++ x64",
       "description": "Visual Studio 2026 の x64 構成",
       "inherits": "vc-base",
-      "architecture": "x64"
+      "architecture": "x64",
+      "installDir": "${sourceDir}/dist/vc-x64-release",
+      "cacheVariables": {
+        "ESUPATH_PACKAGE_TAG": "vc-x64-release"
+      }
     },
     {
       "name": "vc-win32",
       "displayName": "VC++ Win32",
       "description": "Visual Studio 2026 の Win32 構成",
       "inherits": "vc-base",
-      "architecture": "Win32"
+      "architecture": "Win32",
+      "installDir": "${sourceDir}/dist/vc-win32-release",
+      "cacheVariables": {
+        "ESUPATH_PACKAGE_TAG": "vc-win32-release"
+      }
     }
   ],
   "buildPresets": [
@@ -46,6 +51,16 @@
       "jobs": 0
     },
     {
+      "name": "vc-x64-release-install",
+      "configurePreset": "vc-x64",
+      "configuration": "Release",
+      "targets": [
+        "INSTALL"
+      ],
+      "jobs": 0,
+      "cleanFirst": true
+    },
+    {
       "name": "vc-win32-debug",
       "displayName": "VC++ Win32 Debug",
       "configurePreset": "vc-win32",
@@ -58,6 +73,102 @@
       "configurePreset": "vc-win32",
       "configuration": "Release",
       "jobs": 0
+    },
+    {
+      "name": "vc-win32-release-install",
+      "configurePreset": "vc-win32",
+      "configuration": "Release",
+      "targets": [
+        "INSTALL"
+      ],
+      "jobs": 0,
+      "cleanFirst": true
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "vc-x64-release",
+      "configurePreset": "vc-x64",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vc-win32-release",
+      "configurePreset": "vc-win32",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "vc-x64-release",
+      "configurePreset": "vc-x64",
+      "generators": [
+        "ZIP"
+      ],
+      "configurations": [
+        "Release"
+      ]
+    },
+    {
+      "name": "vc-win32-release",
+      "configurePreset": "vc-win32",
+      "generators": [
+        "ZIP"
+      ],
+      "configurations": [
+        "Release"
+      ]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "vc-x64-release",
+      "displayName": "VC++ x64 Release package",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "vc-x64"
+        },
+        {
+          "type": "build",
+          "name": "vc-x64-release-install"
+        },
+        {
+          "type": "test",
+          "name": "vc-x64-release"
+        },
+        {
+          "type": "package",
+          "name": "vc-x64-release"
+        }
+      ]
+    },
+    {
+      "name": "vc-win32-release",
+      "displayName": "VC++ Win32 Release package",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "vc-win32"
+        },
+        {
+          "type": "build",
+          "name": "vc-win32-release-install"
+        },
+        {
+          "type": "test",
+          "name": "vc-win32-release"
+        },
+        {
+          "type": "package",
+          "name": "vc-win32-release"
+        }
+      ]
     }
   ]
 }

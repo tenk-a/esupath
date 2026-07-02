@@ -1,21 +1,42 @@
-pushd %~dp0
-set ROOT_DIR=%CD%
-set BIN_DIR=%ROOT_DIR%\bin
-set SRC_DIR=%ROOT_DIR%\src
-set BLD_DIR=%ROOT_DIR%\build
-if not exist %BIN_DIR% mkdir %BIN_DIR%
-copy %ROOT_DIR%\README.md              %BIN_DIR%\esupath.md
-copy %SRC_DIR%\batch\besupath.bat      %BIN_DIR%\besupath.bat
-copy %SRC_DIR%\batch\coreutilsPrio.bat %BIN_DIR%\coreutilsPrio.bat
+@echo off
+setlocal
+pushd "%~dp0"
 
-if not exist %BLD_DIR% mkdir %BLD_DIR%
+set "tgt="
+set "ReCo=0"
+set "clean_only=0"
 
-pushd %BLD_DIR%
-cmake ..
-cmake --build . --config Release
-cmake --install .
-if exist %BIN_DIR%\esupath.exe (
-  ctest --test-dir vc-x64 -C Release -L env
-  ctest --test-dir vc-x64 -C Release -L user
+:L_LOOP
+  if /I "%1"==""      goto L_LOOP_EXIT
+  if /I "%1"=="clean" set clean_only=1
+  if /I "%1"=="x64"   set tgt=vc-x64
+  if /I "%1"=="win32" set tgt=vc-win32
+  shift
+goto L_LOOP
+:L_LOOP_EXIT
+
+:: clean
+if exist "*.bak" del /q /s "*.bak"
+if "%tgt%"=="" (
+  call :clean vc-x64
+  call :clean vc-win32
+  set "tgt=vc-x64"
+) else (
+  call :clean %tgt%
 )
+if /I "%clean_only%"=="1" goto END
+
+cmake --workflow --preset %tgt%-release
+set "ReCo=%ERRORLEVEL%"
+goto END
+
+:clean
+set t=%1
+if exist "build\%t%"        rmdir /q /s "build\%t%"
+if exist "dist\%t%-release" rmdir /q /s "dist\%t%-release"
+if exist "dist\esupath-%t%-release.zip" del /q "dist\esupath-%t%-release.zip"
+exit /b 0
+
+:END
 popd
+endlocal & exit /b %ReCo%

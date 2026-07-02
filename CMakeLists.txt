@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
 
 project(esupath CXX)
 
@@ -21,10 +21,20 @@ endif()
 
 add_executable(${PROJECT_NAME}
   "${CMAKE_SOURCE_DIR}/src/esupath.cpp"
+  "${CMAKE_SOURCE_DIR}/src/cmd_line_args.hpp"
 )
 
 install(TARGETS ${PROJECT_NAME}
-  RUNTIME DESTINATION "${CMAKE_SOURCE_DIR}/bin"
+  RUNTIME DESTINATION "."
+)
+install(FILES "${CMAKE_SOURCE_DIR}/README.md"
+  DESTINATION "."
+  RENAME "esupath.md"
+)
+install(FILES
+  "${CMAKE_SOURCE_DIR}/src/batch/besupath.bat"
+  "${CMAKE_SOURCE_DIR}/src/batch/coreutilsPrio.bat"
+  DESTINATION "."
 )
 
 include(CTest)
@@ -51,3 +61,14 @@ if(BUILD_TESTING AND WIN32)
     TIMEOUT 60
   )
 endif()
+
+set(ESUPATH_PACKAGE_TAG "" CACHE STRING "Suffix used for the package file name")
+if(ESUPATH_PACKAGE_TAG)
+  set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${ESUPATH_PACKAGE_TAG}")
+else()
+  set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}")
+endif()
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_DIRECTORY "${CMAKE_SOURCE_DIR}/dist")
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
+include(CPack)
